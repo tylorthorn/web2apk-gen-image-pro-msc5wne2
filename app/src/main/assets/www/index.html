@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agnes AI - สร้างภาพ ครบเครื่อง</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, sans-serif; background: #121217; color: #e5e7eb; padding: 12px; max-width: 900px; margin: 0 auto; font-size: 14px; }
+        .section { margin-bottom: 16px; padding: 12px; border-radius: 12px; border: 1px solid #3f3f46; background: #18181b; }
+        .section-studio { border-color: #7e22ce; background: #17151e; }
+        .title { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: #c084fc; display: flex; align-items: center; gap: 6px; }
+        input, textarea, select {
+            width: 100%; padding: 10px 12px; border: 1px solid #4b5563; border-radius: 10px;
+            background: #1f1f23; color: white; font-size: 14px; outline: none; margin-bottom: 10px;
+        }
+        input:focus, textarea:focus, select:focus { border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168,85,247,0.15); }
+        textarea { resize: vertical; min-height: 90px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+        .btn { padding: 10px 16px; border-radius: 10px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; font-size: 14px; }
+        .btn-primary { background: #7e22ce; color: white; }
+        .btn-primary:hover { background: #9333ea; }
+        .btn-secondary { background: #374151; color: white; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-sm { padding: 6px 10px; font-size: 12px; }
+        .input-group { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+        .input-group input { flex: 1; margin-bottom: 0; }
+        .preview-box { border-radius: 10px; border: 1px solid #4b5563; min-height: 120px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 8px; }
+        .preview-box img { max-width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; }
+        .result-img { max-width: 100%; border-radius: 10px; cursor: zoom-in; transition: transform 0.2s; }
+        .fullscreen-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 999;
+            display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px;
+        }
+        .fullscreen-overlay.show { display: flex; }
+        .fullscreen-img { max-width: 95%; max-height: 80vh; object-fit: contain; transform: scale(1); transition: transform 0.2s; }
+        .fs-controls { position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 1000; }
+        .hidden { display: none !important; }
+        .upload-status { font-size: 12px; color: #a3e635; margin-top: 4px; }
+        .progress-bar { width: 100%; height: 8px; background: #374151; border-radius: 999; overflow: hidden; margin: 8px 0; }
+        .progress-fill { height: 100%; background: #a855f7; width: 0%; transition: width 0.3s; }
+        .progress-fill.fail { background: #ef4444; }
+        .studio-item { padding: 10px; border: 1px solid #3f3f46; border-radius: 10px; margin-bottom: 8px; background: #18181b; }
+        select[multiple] { min-height: 100px; }
+    </style>
+</head>
+<body>
+
+<h1 class="text-xl font-bold text-center mb-4 text-purple-400">🎨 Agnes AI - สร้างภาพ ครบเครื่อง</h1>
+
+<div class="section">
+    <div class="title"><i class="fa fa-paint-brush"></i> ตั้งค่าการสร้าง</div>
+    <label class="text-sm text-gray-400 mb-1 block">พรอมต์ (Prompt)</label>
+    <textarea id="prompt" placeholder="อธิบายภาพที่ต้องการ..."></textarea>
+
+    <div class="grid mb-4">
+        <div>
+            <label class="text-sm text-gray-400">รูปแบบสไตล์ภาพ</label>
+            <select id="style">
+                <option value="realistic" selected>ภาพจริง / เรียลลิซึม</option>
+                <option value="anime">สไตล์อนิเมะ</option>
+                <option value="cinematic">สไตล์ภาพยนตร์</option>
+                <option value="digital-art">ศิลปะดิจิทัล</option>
+                <option value="3d">ภาพ 3D</option>
+                <option value="sketch">ร่างวาด / สเก็ตช์</option>
+                <option value="oil-painting">ภาพวาดสีน้ำมัน</option>
+            </select>
+        </div>
+        <div>
+            <label class="text-sm text-gray-400">ขนาด / อัตราส่วนภาพ</label>
+            <select id="size">
+                <option value="512x512">512 × 512 (สี่เหลี่ยม)</option>
+                <option value="768x1024" selected>768 × 1024 (แนวตั้ง)</option>
+                <option value="1024x768">1024 × 768 (แนวนอน)</option>
+                <option value="1024x1024">1024 × 1024 (สี่เหลี่ยมใหญ่)</option>
+                <option value="512x768">512 × 768 (แนวตั้งเล็ก)</option>
+                <option value="768x512">768 × 512 (แนวนอนเล็ก)</option>
+            </select>
+        </div>
+        <div>
+            <label class="text-sm text-gray-400">จำนวนภาพที่สร้าง</label>
+            <select id="count">
+                <option value="1" selected>1 ภาพ</option>
+                <option value="2">2 ภาพ</option>
+                <option value="3">3 ภาพ</option>
+                <option value="4">4 ภาพ</option>
+            </select>
+        </div>
+        <div>
+            <label class="text-sm text-gray-400">โหมดใบหน้า</label>
+            <select id="face-mode">
+                <option value="none">ปกติ</option>
+                <option value="swap">🔄 สลับใบหน้า</option>
+                <option value="lock" selected>🔒 ล็อคใบหน้า</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="text-sm text-gray-400 mb-1 block">📷 ภาพอ้างอิงใบหน้า (จำเป็น)</label>
+        <input type="file" id="ref1" accept="image/*" class="hidden">
+        <label for="ref1" class="btn btn-secondary w-full text-center block">เลือกไฟล์</label>
+        <div id="ref1-preview" class="preview-box mt-2">ยังไม่ได้เลือก</div>
+        <div id="ref1-status" class="upload-status hidden">✅ อัพโหลดสำเร็จ</div>
+    </div>
+
+    <div class="mb-4">
+        <label class="text-sm text-gray-400 mb-1 block">📷 ภาพอ้างอิงฉาก/ท่าทาง (ไม่จำเป็น)</label>
+        <input type="file" id="ref2" accept="image/*" class="hidden">
+        <label for="ref2" class="btn btn-secondary w-full text-center block">เลือกไฟล์</label>
+        <div id="ref2-preview" class="preview-box mt-2">ยังไม่ได้เลือก</div>
+        <div id="ref2-status" class="upload-status hidden">✅ อัพโหลดสำเร็จ</div>
+    </div>
+
+    <button onclick="generateImage()" class="btn btn-primary w-full text-lg py-3">✨ สร้างภาพ</button>
+
+    <div id="progress-section" class="hidden mt-4 mb-3">
+        <div class="flex justify-between text-sm text-gray-400 mb-1">
+            <span id="progress-text">กำลังเตรียมข้อมูล...</span>
+            <span id="progress-percent">0%</span>
+        </div>
+        <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+        </div>
+    </div>
+
+    <div class="mt-2">
+        <div class="title"><i class="fa fa-picture-o"></i> ผลลัพธ์</div>
+        <div id="result-box" class="preview-box min-h-[200px]">ภาพที่สร้างเสร็จจะแสดงที่นี่</div>
+        <div id="result-controls" class="flex gap-2 mt-2 hidden">
+            <button onclick="openFullscreen()" class="btn btn-secondary flex-1"><i class="fa fa-search-plus"></i> ดูเต็มจอ</button>
+            <button onclick="copyResultLink()" class="btn btn-secondary flex-1"><i class="fa fa-copy"></i> คัดลอกลิงค์</button>
+            <button onclick="saveToStudio()" class="btn btn-secondary flex-1"><i class="fa fa-floppy-o"></i> บันทึกคลัง</button>
+            <button onclick="clearResult()" class="btn btn-danger flex-1"><i class="fa fa-trash"></i> ล้าง</button>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="title"><i class="fa fa-cog"></i> ตั้งค่า API & โมเดล</div>
+    <label class="text-sm text-gray-400 mb-1 block">API Base URL</label>
+    <input type="text" id="api-url" value="https://apihub.agnes-ai.com/v1">
+    <label class="text-sm text-gray-400 mb-1 block">API Key</label>
+    <input type="password" id="api-key" placeholder="ใส่รหัสที่นี่">
+    <button onclick="fetchModels()" class="btn btn-secondary w-full mb-3">🔍 ดึงรายชื่อโมเดล</button>
+
+    <label class="text-sm text-gray-400 mb-1 block">ค้นหาโมเดล</label>
+    <div class="input-group">
+        <input type="text" id="model-search" placeholder="พิมพ์ชื่อ...">
+        <button onclick="filterModels()" class="btn btn-secondary px-4"><i class="fa fa-search"></i> กรอง</button>
+    </div>
+
+    <label class="text-sm text-gray-400 mb-1 block">เลือกโมเดล</label>
+    <select id="model-list" class="mb-3" size="3" onchange="syncModelName()"></select>
+    <label class="text-sm text-gray-400 mb-1 block">หรือพิมพ์ชื่อโมเดลโดยตรง</label>
+    <input type="text" id="model-custom" value="agnes-image-2.0-flash">
+</div>
+
+<!-- 📂 My Studio / คลังผลงาน  -->
+<div class="section section-studio">
+    <div class="title flex justify-between items-center">
+        <span><i class="fa fa-folder-open"></i> My Studio / คลังผลงานภาพ</span>
+        <div class="flex gap-2">
+            <button onclick="exportStudioData()" class="btn btn-sm btn-secondary">📤 ส่งออก JSON</button>
+            <button onclick="clearStudioData()" class="btn btn-sm btn-danger">🗑️ ล้างคลังทั้งหมด</button>
+        </div>
+    </div>
+    <div id="studio-list" class="max-h-[350px] overflow-y-auto">
+        <p class="text-gray-400 text-sm">ยังไม่มีผลงานที่บันทึกไว้</p>
+    </div>
+</div>
+
+<div id="fullscreen" class="fullscreen-overlay" onclick="closeFullscreen()">
+    <div class="fs-controls">
+        <button onclick="zoomIn(event)" class="btn btn-secondary">+ ขยาย</button>
+        <button onclick="zoomOut(event)" class="btn btn-secondary">- ย่อ</button>
+        <button onclick="resetZoom(event)" class="btn btn-secondary">รีเซ็ต</button>
+        <button onclick="closeFullscreen()" class="btn btn-danger">ปิด ✕</button>
+    </div>
+    <img id="fs-img" class="fullscreen-img" alt="ภาพเต็มจอ">
+</div>
+
+<script>
+let resultImageUrls = [];
+let currentStyle = '';
+let currentSize = '';
+let scale = 1;
+let allModels = [];
+let ref1Data = null;
+let ref2Data = null;
+let studioData = JSON.parse(localStorage.getItem('dola_studio_image') || '[]');
+
+// ✅ ตั้งค่าอัพโหลดภาพ
+function setupUpload(inputId, previewId, statusId) {
+    const input = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+    const status = document.getElementById(statusId);
+
+    input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+            if(inputId === 'ref1') ref1Data = null;
+            if(inputId === 'ref2') ref2Data = null;
+            preview.innerHTML = 'ยังไม่ได้เลือก';
+            status.classList.add('hidden');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const fullData = ev.target.result;
+            const pureBase64 = fullData.split(',')[1];
+            
+            if(inputId === 'ref1') ref1Data = pureBase64;
+            if(inputId === 'ref2') ref2Data = pureBase64;
+            
+            preview.innerHTML = `<img src="${fullData}" alt="ภาพอ้างอิง">`;
+            status.classList.remove('hidden');
+            console.log(`✅ ${inputId} โหลดสำเร็จ`);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+setupUpload('ref1', 'ref1-preview', 'ref1-status');
+setupUpload('ref2', 'ref2-preview', 'ref2-status');
+
+// ✅ ดึงรายชื่อโมเดล
+async function fetchModels(){
+    const baseUrl = document.getElementById('api-url').value.trim().replace(/\/$/,'');
+    const key = document.getElementById('api-key').value.trim();
+    if(!baseUrl || !key) return alert('กรอก URL และ Key ก่อนครับ');
+    try {
+        const res = await fetch(`${baseUrl}/models`, {headers: {'Authorization': `Bearer ${key}`}});
+        if(!res.ok) throw new Error(`โค้ด ${res.status}`);
+        const data = await res.json();
+        allModels = data.data?.map(m=>m.id) || [];
+        filterModels();
+        alert(`✅ ดึงรายชื่อสำเร็จ พบ ${allModels.length} โมเดลครับ`);
+    } catch(e) { alert('❌ ดึงรายชื่อไม่ได้: '+e.message); }
+}
+
+function filterModels(){
+    const q = document.getElementById('model-search').value.toLowerCase();
+    const sel = document.getElementById('model-list');
+    sel.innerHTML = '';
+    const filtered = allModels.filter(m=>m.toLowerCase().includes(q));
+    if(filtered.length === 0) {
+        sel.innerHTML = '<option disabled>ไม่พบโมเดล</option>';
+        return;
+    }
+    filtered.forEach(m=>{
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        sel.appendChild(opt);
+    });
+}
+
+function syncModelName(){
+    const selected = document.getElementById('model-list').value;
+    if(selected) document.getElementById('model-custom').value = selected;
+}
+
+// ✅ สร้างภาพ ตรงตามสเปก Agnes AI
+async function generateImage(){
+    const baseUrl = document.getElementById('api-url').value.trim().replace(/\/$/,'');
+    const apiKey = document.getElementById('api-key').value.trim();
+    const model = document.getElementById('model-custom').value.trim();
+    const prompt = document.getElementById('prompt').value.trim();
+    const style = document.getElementById('style').value;
+    const size = document.getElementById('size').value;
+    const count = Number(document.getElementById('count').value);
+    
+    currentStyle = style;
+    currentSize = size;
+
+    // ✅ เพิ่มสไตล์ลงพรอมต์อัตโนมัติ
+
+const stylePrompt = {
+    'realistic': 'photorealistic, high detail, natural lighting, keep exact body proportions, height, and appearance identical to reference image, **keep exact face shape, length, and facial features unchanged, do not squash or stretch the face**, no distortion, anatomically correct',
+    'anime': 'anime style, cel shaded, vibrant colors, clean lines, keep exact body proportions, **keep exact face shape and features, no squashing**, no distortion',
+    'cinematic': 'cinematic lighting, film grain, movie style, depth of field, keep exact body proportions, **keep exact face shape and features, no squashing**, no distortion',
+    'digital-art': 'digital illustration, sharp details, artstation style, keep exact body proportions, **keep exact face shape and features, no squashing**, no distortion',
+    '3d': '3D render, unreal engine 5, realistic materials, keep exact body proportions, **keep exact face shape and features, no squashing**, no distortion',
+    'sketch': 'pencil sketch, hand drawn, line art, keep exact body proportions, **keep exact face shape and features, no squashing**, no distortion',
+    'oil-painting': 'oil painting style, brush strokes, rich colors, keep exact body proportions, **keep exact face shape and features, no squashing**, no distortion'
+}[style];
+
+
+    const fullPrompt = `${prompt}, ${stylePrompt}`;
+
+    // ตรวจสอบข้อมูล
+    if(!prompt || !model) return alert('กรอกพรอมต์และชื่อโมเดลให้ครบครับ');
+    if(!ref1Data) return alert('⚠️ กรุณาเลือกภาพอ้างอิงใบหน้าก่อนครับ');
+
+    // ✅ จัดรูปแบบข้อมูลส่งให้ถูกต้องตาม API
+    const reqBody = {
+        model: model,
+        prompt: fullPrompt,
+        size: size,
+        n: count,
+        extra_body: {
+            image: [ref1Data],
+            response_format: "url",
+            face_mode: document.getElementById('face-mode').value
+        }
+    };
+    if(ref2Data) reqBody.extra_body.image.push(ref2Data);
+
+    console.log('🔍 ข้อมูลที่ส่ง:', JSON.stringify(reqBody, null, 2));
+
+    const progressSection = document.getElementById('progress-section');
+    const progressText = document.getElementById('progress-text');
+    const progressFill = document.getElementById('progress-fill');
+    const progressPercent = document.getElementById('progress-percent');
+    progressSection.classList.remove('hidden');
+    progressFill.style.width = '0%';
+    progressPercent.textContent = '0%';
+    progressFill.classList.remove('fail');
+
+    try {
+        progressText.textContent = 'กำลังส่งข้อมูลให้ระบบ...';
+        progressFill.style.width = '20%';
+        progressPercent.textContent = '20%';
+        await new Promise(r => setTimeout(r, 300));
+
+        progressText.textContent = 'โมเดลกำลังสร้างภาพ...';
+        progressFill.style.width = '50%';
+        progressPercent.textContent = '50%';
+
+        const res = await fetch(`${baseUrl}/images/generations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify(reqBody)
+        });
+
+        progressText.textContent = 'ตรวจสอบผลลัพธ์...';
+        progressFill.style.width = '80%';
+        progressPercent.textContent = '80%';
+
+        if(!res.ok) throw new Error(`โค้ด ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+        console.log('📥 คำตอบจาก API:', data);
+
+        resultImageUrls = data.data?.map(img=>img.url) || [];
+        if(resultImageUrls.length === 0) throw new Error('ไม่พบที่อยู่ภาพผลลัพธ์');
+
+        progressText.textContent = 'สำเร็จ!';
+        progressFill.style.width = '100%';
+        progressPercent.textContent = '100%';
+        await new Promise(r => setTimeout(r, 500));
+
+        // แสดงผลลัพธ์
+        const resultBox = document.getElementById('result-box');
+        resultBox.innerHTML = '';
+        resultImageUrls.forEach((url, idx)=>{
+            const img = document.createElement('img');
+            img.src = url;
+            img.className = 'result-img';
+            img.alt = `ผลลัพธ์ภาพที่ ${idx+1}`;
+            resultBox.appendChild(img);
+        });
+        document.getElementById('result-controls').classList.remove('hidden');
+        alert(`✅ สร้างภาพสำเร็จ ${resultImageUrls.length} ภาพครับ!`);
+
+    } catch(e) {
+        progressText.textContent = 'ผิดพลาด!';
+        progressFill.classList.add('fail');
+        progressPercent.textContent = 'ล้มเหลว';
+        alert('❌ ผิดพลาด:\n'+e.message);
+    } finally {
+        setTimeout(()=> progressSection.classList.add('hidden'), 2500);
+    }
+}
+
+// ✅ ฟีเจอร์จัดการผลลัพธ์
+function copyResultLink(){
+    if(resultImageUrls.length === 0) return alert('ยังไม่มีผลลัพธ์ครับ');
+    const links = resultImageUrls.join('\n');
+    navigator.clipboard.writeText(links)
+        .then(()=> alert('✅ คัดลอกลิงค์ทั้งหมดเรียบร้อยครับ'))
+        .catch(()=> alert('❌ ไม่สามารถคัดลอกอัตโนมัติได้:\n'+links));
+}
+function downloadResult(){
+    if(resultImageUrls.length === 0) return;
+    resultImageUrls.forEach((url, idx)=>{
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `agnes_img_${Date.now()}_${idx+1}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    });
+}
+function clearResult(){
+    resultImageUrls = [];
+    document.getElementById('result-box').innerHTML = 'ภาพที่สร้างเสร็จจะแสดงที่นี่';
+    document.getElementById('result-controls').classList.add('hidden');
+}
+
+// ✅ เต็มจอ
+function openFullscreen(){
+    if(resultImageUrls.length === 0) return;
+    scale = 1;
+    document.getElementById('fs-img').src = resultImageUrls[0];
+    document.getElementById('fullscreen').classList.add('show');
+}
+function closeFullscreen(){
+    document.getElementById('fullscreen').classList.remove('show');
+}
+function zoomIn(e){ e.stopPropagation(); scale += 0.2; document.getElementById('fs-img').style.transform = `scale(${scale})`; }
+function zoomOut(e){ e.stopPropagation(); scale = Math.max(0.5, scale-0.2); document.getElementById('fs-img').style.transform = `scale(${scale})`; }
+function resetZoom(e){ e.stopPropagation(); scale = 1; document.getElementById('fs-img').style.transform = `scale(${scale})`; }
+
+// ✅ My Studio / คลังผลงาน
+function saveToStudio(){
+    if(resultImageUrls.length === 0) return alert('ยังไม่มีผลลัพธ์ที่จะบันทึกครับ');
+    const item = {
+        id: Date.now(),
+        date: new Date().toLocaleString('th-TH'),
+        prompt: document.getElementById('prompt').value.trim(),
+        style: currentStyle,
+        size: currentSize,
+        count: resultImageUrls.length,
+        urls: resultImageUrls
+    };
+    studioData.unshift(item);
+    localStorage.setItem('dola_studio_image', JSON.stringify(studioData));
+    renderStudioList();
+    alert('✅ บันทึกไปคลังผลงานเรียบร้อยครับ');
+}
+
+function renderStudioList() {
+    const list = document.getElementById('studio-list');
+    if(studioData.length === 0) {
+        list.innerHTML = '<p class="text-gray-400 text-sm">ยังไม่มีผลงานที่บันทึกไว้</p>';
+        return;
+    }
+    list.innerHTML = '';
+    studioData.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'studio-item';
+        el.innerHTML = `
+            <div class="text-sm text-gray-400">${item.date} | สไตล์: ${item.style} | ขนาด: ${item.size} | ${item.count} ภาพ</div>
+            <div class="text-xs mt-1 mb-2 line-clamp-2">${item.prompt}</div>
+            <div class="flex gap-2 flex-wrap">
+                <button onclick="openStudioImages(${item.id})" class="btn btn-sm btn-secondary">ดูภาพ</button>
+                <button onclick="copyStudioLinks(${item.id})" class="btn btn-sm btn-secondary">คัดลอกลิงค์</button>
+                <button onclick="deleteStudioItem(${item.id})" class="btn btn-sm btn-danger">ลบ</button>
+            </div>
+        `;
+        list.appendChild(el);
+    });
+}
+
+function openStudioImages(id){
+    const item = studioData.find(i=>i.id === id);
+    if(!item) return;
+    item.urls.forEach(url=> window.open(url, '_blank'));
+}
+function copyStudioLinks(id){
+    const item = studioData.find(i=>i.id === id);
+    if(!item) return;
+    const links = item.urls.join('\n');
+    navigator.clipboard.writeText(links)
+        .then(()=> alert('✅ คัดลอกเรียบร้อยครับ'))
+        .catch(()=> alert('ลิงค์:\n'+links));
+}
+function deleteStudioItem(id){
+    if(!confirm('ยืนยันการลบผลงานนี้ไหมครับ?')) return;
+    studioData = studioData.filter(i => i.id !== id);
+    localStorage.setItem('dola_studio_image', JSON.stringify(studioData));
+    renderStudioList();
+}
+function exportStudioData() {
+    if(studioData.length === 0) return alert('ไม่มีข้อมูลที่จะส่งออกครับ');
+    const blob = new Blob([JSON.stringify(studioData, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `my_studio_image_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+function clearStudioData() {
+    if(!confirm('ยืนยันการล้างข้อมูลทั้งหมดในคลังไหมครับ?')) return;
+    studioData = [];
+    localStorage.removeItem('dola_studio_image');
+    renderStudioList();
+}
+
+// โหลดข้อมูลเริ่มต้น
+renderStudioList();
+</script>
+</body>
+</html>
